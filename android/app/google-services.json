@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "998135056333",
+    "project_id": "libpulse-89590",
+    "storage_bucket": "libpulse-89590.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:998135056333:android:40d7dc74d120c69441a684",
+        "android_client_info": {
+          "package_name": "com.example.lib_pulse"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCMDkYaece2Nj7eibmC-4ivl1Q-vSWjr7M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
