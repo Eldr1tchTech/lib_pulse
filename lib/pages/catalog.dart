@@ -18,6 +18,8 @@ class _CatalogTabState extends State<CatalogTab> {
   String _searchQuery = '';
   final DatabaseServices _databaseServices = DatabaseServices();
   final TextEditingController _searchController = TextEditingController();
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -56,28 +58,47 @@ class _CatalogTabState extends State<CatalogTab> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: ToggleButtons(
-            isSelected: [_showCustomers, !_showCustomers],
+            isSelected: [!_showCustomers, _showCustomers],
             onPressed: (index) => setState(() {
-              _showCustomers = index == 0;
+              _showCustomers = index == 1;
               _searchQuery = '';
               _searchController.clear();
             }),
             children: const [
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text('Customers'),
+                child: Text('Books'),
               ),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text('Books'),
+                child: Text('Customers'),
               ),
             ],
           ),
         ),
-        Container(
-          height: 16,
-        ),
-        _showCustomers ? _buildCustomersView() : _buildBooksView(),
+        
+        // Show error message if any
+        if (_errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              _errorMessage!,
+              style: const TextStyle(color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          
+        Container(height: 16),
+        
+        // Show loading indicator if loading
+        if (_isLoading)
+          const Expanded(
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else
+          _showCustomers ? _buildCustomersView() : _buildBooksView(),
       ],
     );
   }
@@ -87,58 +108,58 @@ class _CatalogTabState extends State<CatalogTab> {
       stream: _databaseServices.filterCustomers(_searchQuery),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const CircularProgressIndicator();
+          return const Expanded(
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
         }
 
         if (snapshot.hasError) {
-          return Text('Error: ${snapshot.error}');
+          return Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text('Error: ${snapshot.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
 
         final customers = snapshot.data ?? [];
-        return Expanded(
-          child: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 1,
-              childAspectRatio: 6,
+        
+        if (customers.isEmpty) {
+          return const Expanded(
+            child: Center(
+              child: Text('No customers found'),
             ),
+          );
+        }
+        
+        return Expanded(
+          child: ListView.builder(
             itemCount: customers.length,
             itemBuilder: (context, index) {
               final customer = customers[index];
               return Card(
                 elevation: 4,
-                child: Row(
-                  children: [
-                    AspectRatio(
-                      aspectRatio: 1 / 1,
-                      child: SizedBox(
-                        height: double.infinity,
-                        width: double.infinity,
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.error),
-                            Text('Image not available'),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          customer.name,
-                        ),
-                        Text(
-                          'Email: ${customer.email}',
-                        ),
-                        Text(
-                          'ID: ${customer.id}',
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    _buildCustomerActions(customer),
-                  ],
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    child: Text(customer.name[0].toUpperCase()),
+                  ),
+                  title: Text(customer.name),
+                  subtitle: Text(customer.email),
+                  trailing: _buildCustomerActions(customer),
                 ),
               );
             },
@@ -153,83 +174,97 @@ class _CatalogTabState extends State<CatalogTab> {
       stream: _databaseServices.filterBooks(_searchQuery),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const CircularProgressIndicator();
+          return const Expanded(
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
         }
 
         if (snapshot.hasError) {
-          return Text('Error: ${snapshot.error}');
+          return Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text('Error: ${snapshot.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
 
         final books = snapshot.data ?? [];
-        return Expanded(
-          child: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 1,
-              childAspectRatio: 6,
+        
+        if (books.isEmpty) {
+          return const Expanded(
+            child: Center(
+              child: Text('No books found'),
             ),
+          );
+        }
+        
+        return Expanded(
+          child: ListView.builder(
             itemCount: books.length,
             itemBuilder: (context, index) {
               final book = books[index];
+              
+              return Card(
+                elevation: 4,
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListTile(
+                  leading: const Icon(Icons.book, size: 40),
+                  title: Text(
+                    book.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('by ${book.author}'),
+                      Text('ISBN: ${book.isbn}'),
+                      FutureBuilder<Map<String, int>>(
+                        future: _databaseServices
+                            .availability(book)
+                            .then((result) => {
+                                  'available': result.$1,
+                                  'total': result.$2
+                                })
+                            .catchError((e) => {'available': 0, 'total': 0}),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Text('Loading availability...');
+                          }
 
-              return FutureBuilder<Series?>(
-                future:
-                    book.seriesRef?.get().then((snapshot) => snapshot.data()),
-                builder: (context, seriesSnapshot) {
-                  if (seriesSnapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return Card(
-                      child: Text('${book.title}...'),
-                    );
-                  }
-
-                  if (seriesSnapshot.hasError) {
-                    return const Card(
-                      child: Text('An error has occurred.'),
-                    );
-                  }
-
-                  final series = seriesSnapshot.data;
-                  return Card(
-                    elevation: 4,
-                    child: Row(
-                      children: [
-                        AspectRatio(
-                          aspectRatio: 1 / 1,
-                          child: SizedBox(
-                            height: double.infinity,
-                            width: double.infinity,
-                            child: const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.error),
-                                Text('Image not available'),
-                              ],
-                            ),
-                          ),
+                          final data = snapshot.data ?? {'available': 0, 'total': 0};
+                          return Text(
+                              'Available: ${data['available']} / Total: ${data['total']}');
+                        },
+                      ),
+                    ],
+                  ),
+                  isThreeLine: true,
+                  trailing: _buildBookActions(book),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => BookDetailsScreen(
+                          bookRef: _databaseServices.booksRef.doc(book.id),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              series != null
-                                  ? 'Title: ${book.title} (${series.name} Book ${book.positionInSeries ?? ""})'
-                                  : 'Title: ${book.title}',
-                            ),
-                            Text(
-                              'by ${book.author}',
-                            ),
-                            Text(
-                              'ISBN: ${book.isbn}',
-                            ),
-                            _availabilityText(book),
-                          ],
-                        ),
-                        const Spacer(),
-                        _buildBookActions(book),
-                      ],
-                    ),
-                  );
-                },
+                      ),
+                    );
+                  },
+                ),
               );
             },
           ),
@@ -238,26 +273,202 @@ class _CatalogTabState extends State<CatalogTab> {
     );
   }
 
-  Widget _availabilityText(Book book) {
-    return FutureBuilder<Map<String, int>>(
-      future: _databaseServices
-          .availability(book)
-          .then((result) => {'available': result.$1, 'total': result.$2}),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Text('Loading availability...');
+  Widget _buildBookActions(Book book) {
+    return PopupMenuButton(
+      icon: const Icon(Icons.more_vert),
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'add_copy',
+          child: Row(
+            children: [
+              Padding(
+                padding: EdgeInsets.only(right: 8.0),
+                child: Icon(Icons.add),
+              ),
+              Text('Add Copy'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'view',
+          child: Row(
+            children: [
+              Padding(
+                padding: EdgeInsets.only(right: 8.0),
+                child: Icon(Icons.remove_red_eye),
+              ),
+              Text('View Details'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Padding(
+                padding: EdgeInsets.only(right: 8.0),
+                child: Icon(Icons.delete),
+              ),
+              Text('Delete'),
+            ],
+          ),
+        ),
+      ],
+      onSelected: (value) async {
+        try {
+          if (value == 'add_copy') {
+            await _addCopy(book);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Copy added successfully')),
+            );
+          } else if (value == 'view') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BookDetailsScreen(
+                  bookRef: _databaseServices.booksRef.doc(book.id),
+                ),
+              ),
+            );
+          } else if (value == 'delete') {
+            // Add delete confirmation dialog
+            _showDeleteConfirmationDialog(book);
+          }
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')),
+          );
         }
+      },
+    );
+  }
 
-        if (snapshot.hasError) {
-          return const Text('Error loading availability');
+  void _showDeleteConfirmationDialog(Book book) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Delete'),
+        content: Text('Are you sure you want to delete "${book.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              // Delete the book
+              try {
+                _databaseServices.deleteBook(book.id);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Book deleted successfully')),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error deleting book: $e')),
+                );
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addCopy(Book book) async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+      
+      final docRef = _databaseServices.copiesRef.doc();
+
+      final newCopy = Copy(
+        id: docRef.id,
+        bookRef: _databaseServices.booksRef.doc(book.id),
+        dateAcquired: DateTime.now(),
+        available: true,
+        loanRefs: [],
+        reference: docRef,
+      );
+
+      await docRef.set(newCopy);
+      
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Error adding copy: $e';
+      });
+      print('Error adding copy: $e');
+      rethrow;
+    }
+  }
+
+  Widget _buildCustomerActions(Customer customer) {
+    return PopupMenuButton(
+      icon: const Icon(Icons.more_vert),
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'view',
+          child: Row(
+            children: [
+              Padding(
+                padding: EdgeInsets.only(right: 8.0),
+                child: Icon(Icons.remove_red_eye),
+              ),
+              Text('View Details'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'edit',
+          child: Row(
+            children: [
+              Padding(
+                padding: EdgeInsets.only(right: 8.0),
+                child: Icon(Icons.edit),
+              ),
+              Text('Edit'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Padding(
+                padding: EdgeInsets.only(right: 8.0),
+                child: Icon(Icons.delete),
+              ),
+              Text('Delete'),
+            ],
+          ),
+        ),
+      ],
+      onSelected: (value) {
+        if (value == 'view') {
+          // Implement view customer details
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('View customer details - Coming soon')),
+          );
+        } else if (value == 'edit') {
+          // Implement edit customer
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Edit customer - Coming soon')),
+          );
+        } else if (value == 'delete') {
+          // Implement delete customer
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Delete customer - Coming soon')),
+          );
         }
-
-        if (!snapshot.hasData) {
-          return const Text('Available: 0 / Total: 0');
-        }
-
-        return Text(
-            'Available: ${snapshot.data!['available']} / Total: ${snapshot.data!['total']}');
       },
     );
   }
@@ -277,118 +488,10 @@ class _CatalogTabState extends State<CatalogTab> {
       ),
     );
   }
-
-  Widget _buildBookActions(Book book) {
-    return PopupMenuButton(
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-            value: 'add_copy',
-            child: Row(
-              children: [
-                Padding(
-                  padding: EdgeInsets.only(right: 4.0),
-                  child: Icon(Icons.add),
-                ),
-                Text('Add Copy'),
-              ],
-            )),
-        const PopupMenuItem(
-          value: 'view',
-          child: Row(
-            children: [
-              Padding(
-                padding: EdgeInsets.only(right: 4.0),
-                child: Icon(Icons.remove_red_eye),
-              ),
-              Text('View'),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              Padding(
-                padding: EdgeInsets.only(right: 4.0),
-                child: Icon(Icons.delete),
-              ),
-              Text('Delete'),
-            ],
-          ),
-        ),
-      ],
-      onSelected: (value) async {
-        if (value == 'add_copy') {
-          _addCopy(book);
-        } else if (value == 'view') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => BookDetailsScreen(
-                bookRef: _databaseServices.booksRef.doc(book.id),
-              ),
-            ),
-          );
-        }
-      },
-    );
-  }
-
-  Future<void> _addCopy(Book book) async {
-    try {
-      // Run on platform thread
-      await Future(() async {
-        final docRef = _databaseServices.copiesRef.doc();
-
-        final newCopy = Copy(
-          id: docRef.id,
-          bookRef: _databaseServices.booksRef.doc(book.id),
-          dateAcquired: DateTime.now(),
-          available: true,
-          loanRefs: [],
-          reference: docRef,
-        );
-
-        await docRef.set(newCopy);
-      });
-    } catch (e) {
-      print('Error adding copy: $e');
-      rethrow;
-    }
-  }
 }
 
-Widget _buildCustomerActions(Customer customer) {
-  return PopupMenuButton(
-    itemBuilder: (context) => [
-      const PopupMenuItem(
-          value: 'view',
-          child: Row(
-            children: [
-              Padding(
-                padding: EdgeInsets.only(right: 4.0),
-                child: Icon(Icons.remove_red_eye),
-              ),
-              Text('View'),
-            ],
-          )),
-    ],
-    onSelected: (value) async {
-      if (value == 'view') {
-        /*
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CustomerDetailsScreen(
-                customerRef: customerRef,
-              ),
-            ),
-          );
-          */
-      }
-    },
-  );
-}
+// Keep the existing AddBookForm and AddCustomerForm classes...
+// Include the rest of the file here
 
 class AddBookForm extends StatefulWidget {
   final Function(Book book) onSubmit;
