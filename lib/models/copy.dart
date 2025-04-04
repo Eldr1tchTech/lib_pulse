@@ -8,7 +8,6 @@ class Copy {
   final DateTime dateAcquired;
   final bool available;
   final List<DocumentReference<Loan>> loanRefs;
-  final DocumentReference<Copy> reference;
 
   Copy({
     required this.id,
@@ -16,10 +15,9 @@ class Copy {
     required this.dateAcquired,
     this.available = true,
     this.loanRefs = const [],
-    required this.reference,
   });
 
-  Copy.fromJson(Map<String, Object?> json, {required this.reference})
+  Copy.fromJson(Map<String, Object?> json)
       : id = json['id'] as String,
         bookRef = json['bookRef'] as DocumentReference<Book>,
         dateAcquired = (json['dateAcquired'] as Timestamp).toDate(),
