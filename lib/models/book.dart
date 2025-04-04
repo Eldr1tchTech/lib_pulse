@@ -47,4 +47,34 @@ class Book {
       'positionInSeries': positionInSeries,
     };
   }
+
+  static Book fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Book(
+      id: doc.id,
+      isbn: data['isbn'] ?? 0,
+      title: data['title'] ?? 'Unknown',
+      author: data['author'] ?? 'Unknown',
+      genres: List<String>.from((data['genres'] as List?) ?? []),
+      readingTimes: (data['readingTimes'] as List?)
+              ?.map((e) => Duration(minutes: e as int))
+              .toList() ??
+          [],
+      seriesRef: data['seriesRef'] as DocumentReference<Series>?,
+      positionInSeries: data['positionInSeries'] as int?,
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'isbn': isbn,
+      'title': title,
+      'author': author,
+      'genres': genres,
+      'readingTimes': readingTimes.map((e) => e.inMinutes).toList(),
+      'seriesRef': seriesRef,
+      'positionInSeries': positionInSeries,
+    };
+  }
 }
