@@ -20,6 +20,13 @@ class _CatalogTabState extends State<CatalogTab> {
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+  Map<String, (int, int)> _availabilityData = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvailabilityData();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +83,7 @@ class _CatalogTabState extends State<CatalogTab> {
             ],
           ),
         ),
-        
+
         // Show error message if any
         if (_errorMessage != null)
           Padding(
@@ -87,9 +94,9 @@ class _CatalogTabState extends State<CatalogTab> {
               textAlign: TextAlign.center,
             ),
           ),
-          
+
         Container(height: 16),
-        
+
         // Show loading indicator if loading
         if (_isLoading)
           const Expanded(
@@ -136,7 +143,7 @@ class _CatalogTabState extends State<CatalogTab> {
         }
 
         final customers = snapshot.data ?? [];
-        
+
         if (customers.isEmpty) {
           return const Expanded(
             child: Center(
@@ -144,7 +151,7 @@ class _CatalogTabState extends State<CatalogTab> {
             ),
           );
         }
-        
+
         return Expanded(
           child: ListView.builder(
             itemCount: customers.length,
@@ -202,7 +209,7 @@ class _CatalogTabState extends State<CatalogTab> {
         }
 
         final books = snapshot.data ?? [];
-        
+
         if (books.isEmpty) {
           return const Expanded(
             child: Center(
@@ -210,13 +217,13 @@ class _CatalogTabState extends State<CatalogTab> {
             ),
           );
         }
-        
+
         return Expanded(
           child: ListView.builder(
             itemCount: books.length,
             itemBuilder: (context, index) {
               final book = books[index];
-              
+
               return Card(
                 elevation: 4,
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -231,24 +238,8 @@ class _CatalogTabState extends State<CatalogTab> {
                     children: [
                       Text('by ${book.author}'),
                       Text('ISBN: ${book.isbn}'),
-                      FutureBuilder<Map<String, int>>(
-                        future: _databaseServices
-                            .availability(book)
-                            .then((result) => {
-                                  'available': result.$1,
-                                  'total': result.$2
-                                })
-                            .catchError((e) => {'available': 0, 'total': 0}),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Text('Loading availability...');
-                          }
-
-                          final data = snapshot.data ?? {'available': 0, 'total': 0};
-                          return Text(
-                              'Available: ${data['available']} / Total: ${data['total']}');
-                        },
+                      Text(
+                        'Available: ${_availabilityData[book.id]?.$1 ?? 0} / Total: ${_availabilityData[book.id]?.$2 ?? 0}',
                       ),
                     ],
                   ),
@@ -271,6 +262,17 @@ class _CatalogTabState extends State<CatalogTab> {
         );
       },
     );
+  }
+
+  Future<void> _loadAvailabilityData() async {
+    try {
+      final data = await _databaseServices.getAllBooksAvailability();
+      setState(() {
+        _availabilityData = data;
+      });
+    } catch (e) {
+      print('Error loading availability data: $e');
+    }
   }
 
   Widget _buildBookActions(Book book) {
@@ -384,7 +386,7 @@ class _CatalogTabState extends State<CatalogTab> {
         _isLoading = true;
         _errorMessage = null;
       });
-      
+
       final docRef = _databaseServices.copiesRef.doc();
 
       final newCopy = Copy(
@@ -397,7 +399,7 @@ class _CatalogTabState extends State<CatalogTab> {
       );
 
       await docRef.set(newCopy);
-      
+
       setState(() {
         _isLoading = false;
       });
@@ -456,7 +458,8 @@ class _CatalogTabState extends State<CatalogTab> {
         if (value == 'view') {
           // Implement view customer details
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('View customer details - Coming soon')),
+            const SnackBar(
+                content: Text('View customer details - Coming soon')),
           );
         } else if (value == 'edit') {
           // Implement edit customer

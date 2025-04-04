@@ -226,4 +226,39 @@ class DatabaseServices {
         .get();
     return querySnapshot.docs.map((doc) => doc.data()).toList();
   }
+
+  // In DatabaseServices class
+Future<Map<String, (int, int)>> getAllBooksAvailability() async {
+  try {
+    final querySnapshot = await _copiesRef.get();
+    
+    // Group copies by book reference
+    Map<String, List<Copy>> copiesByBook = {};
+    for (var doc in querySnapshot.docs) {
+      try {
+        final copy = doc.data();
+        String bookId = copy.bookRef.id;
+        if (!copiesByBook.containsKey(bookId)) {
+          copiesByBook[bookId] = [];
+        }
+        copiesByBook[bookId]!.add(copy);
+      } catch (e) {
+        print('Error processing copy: $e');
+      }
+    }
+    
+    // Calculate availability for each book
+    Map<String, (int, int)> result = {};
+    copiesByBook.forEach((bookId, copies) {
+      int total = copies.length;
+      int available = copies.where((copy) => copy.available).length;
+      result[bookId] = (available, total);
+    });
+    
+    return result;
+  } catch (e) {
+    print('Error getting all books availability: $e');
+    return {};
+  }
+}
 }
