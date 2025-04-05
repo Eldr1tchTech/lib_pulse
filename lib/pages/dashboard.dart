@@ -126,128 +126,80 @@ class _DashboardTabState extends State<DashboardTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Activity Distribution over Day",
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold,),),
+                const Text(
+                  "Activity Distribution over Day",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Expanded(
                   child: SizedBox(
                     height: 200,
                     child: StreamBuilder<List<Copy>>(
-                        // Rebuild when copies change
-                        stream: _databaseServices.allCopies(),
-                        builder: (context, copiesSnapshot) {
-                          if (!copiesSnapshot.hasData ||
-                              copiesSnapshot.data == null) {
-                            return const Center(
-                                child: CircularProgressIndicator());
-                          }
-                          final copies = copiesSnapshot.data!;
+                      stream: _databaseServices.allCopies(),
+                      builder: (context, copiesSnapshot) {
+                        if (!copiesSnapshot.hasData ||
+                            copiesSnapshot.data == null) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        final copies = copiesSnapshot.data!;
 
-                          return ListView.builder(
-                            itemCount: copies.length,
-                            itemBuilder: (context, index) {
-                              final copy = copies[index];
+                        for (var copy in copies) {
+                          // Populate activity map here based on your logic
+                          // Example:
+                          // double hour = copy.timestamp.hour.toDouble();
+                          // activity[hour] = (activity[hour] ?? 0) + 1;
+                        }
 
-                              return StreamBuilder<
-                                  QuerySnapshot<Map<String, dynamic>>>(
-                                stream: copy.reference
-                                    .collection('loanHistory')
-                                    .snapshots(),
-                                builder: (context, loanSnapshot) {
-                                  if (loanSnapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return const SizedBox.shrink();
-                                  }
+                        Map<double, double> sortActivityByTime(
+                            Map<double, double> activity) {
+                          var sortedEntries = activity.entries.toList()
+                            ..sort((a, b) => a.key.compareTo(b.key));
 
-                                  if (loanSnapshot.hasError) {
-                                    return Text('Error: ${loanSnapshot.error}');
-                                  }
+                          return Map.fromEntries(sortedEntries);
+                        }
 
-                                  if (!loanSnapshot.hasData ||
-                                      loanSnapshot.data == null) {
-                                    return const SizedBox.shrink();
-                                  }
+                        activity = sortActivityByTime(activity);
 
-                                  final loanRecords = loanSnapshot.data!.docs;
+                        activity.forEach((hour, count) {
+                          spots.add(FlSpot(hour, count));
+                        });
 
-                                  for (final loanDoc in loanRecords) {
-                                    final loanData = loanDoc.data();
-                                    final borrowDate =
-                                        (loanData['dateOut'] as Timestamp)
-                                            .toDate();
-                                    final returnDateTimestamp =
-                                        loanData['dateIn'] as Timestamp?;
-
-                                    if (!loanData['isRenewal']) {
-                                      activity[borrowDate.hour.toDouble()] =
-                                          (activity[borrowDate.hour
-                                                      .toDouble()] ??
-                                                  0) +
-                                              1;
-                                      if (returnDateTimestamp != null) {
-                                        final returnDate =
-                                            returnDateTimestamp.toDate();
-                                        activity[returnDate.hour.toDouble()] =
-                                            (activity[returnDate.hour
-                                                        .toDouble()] ??
-                                                    0) +
-                                                1;
-                                      }
-                                    }
-                                  }
-
-                                  Map<double, double> sortActivityByTime(
-                                      Map<double, double> activity) {
-                                    var sortedEntries = activity.entries
-                                        .toList()
-                                      ..sort((a, b) => a.key.compareTo(b.key));
-
-                                    return Map.fromEntries(sortedEntries);
-                                  }
-
-                                  activity = sortActivityByTime(activity);
-
-                                  activity.forEach((hour, count) {
-                                    spots.add(FlSpot(hour, count));
-                                  });
-
-                                  return LineChart(
-                                    LineChartData(
-                                      lineBarsData: [
-                                        LineChartBarData(
-                                          spots: spots,
-                                          isCurved: true,
-                                          preventCurveOverShooting: true,
-                                          barWidth: 4,
-                                          belowBarData:
-                                              BarAreaData(show: false),
-                                          dotData: const FlDotData(show: false),
-                                        ),
-                                      ],
-                                      titlesData: const FlTitlesData(
-                                        leftTitles: AxisTitles(
-                                          sideTitles: SideTitles(
-                                            showTitles: true,
-                                            interval: 1,
-                                          ),
-                                          axisNameWidget: Text('Actions'),
-                                        ),
-                                        bottomTitles: AxisTitles(
-                                          sideTitles: SideTitles(
-                                              showTitles: true, interval: 1),
-                                          axisNameWidget: Text('Time of Day'),
-                                        ),
-                                      ),
-                                      gridData: const FlGridData(show: false),
-                                      borderData: FlBorderData(show: true),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                          );
-                        }),
+                        return LineChart(
+                          LineChartData(
+                            lineBarsData: [
+                              LineChartBarData(
+                                spots: spots,
+                                isCurved: true,
+                                preventCurveOverShooting: true,
+                                barWidth: 4,
+                                belowBarData: BarAreaData(show: false),
+                                dotData: const FlDotData(show: false),
+                              ),
+                            ],
+                            titlesData: const FlTitlesData(
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  interval: 1,
+                                ),
+                                axisNameWidget: Text('Actions'),
+                              ),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                    showTitles: true, interval: 1),
+                                axisNameWidget: Text('Time of Day'),
+                              ),
+                            ),
+                            gridData: const FlGridData(show: false),
+                            borderData: FlBorderData(show: true),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],

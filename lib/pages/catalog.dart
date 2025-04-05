@@ -395,7 +395,6 @@ class _CatalogTabState extends State<CatalogTab> {
         dateAcquired: DateTime.now(),
         available: true,
         loanRefs: [],
-        reference: docRef,
       );
 
       await docRef.set(newCopy);

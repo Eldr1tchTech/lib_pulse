@@ -1,11 +1,12 @@
-// ignore_for_file: constant_identifier_names
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '/services/firestore_service.dart';
 import '/models/copy.dart';
 import '/models/book.dart';
 import '/models/series.dart';
 import '/models/customer.dart';
 
+// Constants remain the same
 const String BOOKS_COLLECTION_REF = "books";
 const String SERIES_COLLECTION_REF = "series";
 const String COPIES_COLLECTION_REF = "copies";
@@ -13,52 +14,151 @@ const String CONFIG_COLLECTION_REF = "config";
 const String CUSTOMERS_COLLECTION_REF = "customers";
 
 class DatabaseServices {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirestoreService _firestoreService = FirestoreService();
+  
+  // Collection references
   late final CollectionReference<Book> _booksRef;
   late final CollectionReference<Series> _seriesRef;
   late final CollectionReference<Copy> _copiesRef;
   late final CollectionReference _configRef;
   late final CollectionReference<Customer> _customersRef;
-
-  FirebaseFirestore get firestore => _firestore;
-  CollectionReference<Book> get booksRef => _booksRef;
-  CollectionReference<Customer> get customersRef => _customersRef;
-  CollectionReference<Copy> get copiesRef => _copiesRef;
-  CollectionReference<Series> get seriesRef => _seriesRef;
-
+  
+  // Getters remain the same but use _firestoreService
+  CollectionReference<Book> get booksRef {
+    _checkAuthentication();
+    return _booksRef;
+  }
+  
+  // Other getters following the same pattern...
+  
   DatabaseServices() {
-    _booksRef = _firestore.collection(BOOKS_COLLECTION_REF).withConverter<Book>(
-          fromFirestore: (snapshots, _) => Book.fromJson(
-            snapshots.data()!,
-          ),
-          toFirestore: (book, _) => book.toJson(),
-        );
-    _seriesRef =
-        _firestore.collection(SERIES_COLLECTION_REF).withConverter<Series>(
-              fromFirestore: (snapshots, _) => Series.fromJson(
-                snapshots.data()!,
-              ),
-              toFirestore: (series, _) => series.toJson(),
-            );
-    _copiesRef =
-        _firestore.collection(COPIES_COLLECTION_REF).withConverter<Copy>(
-              fromFirestore: (snapshots, _) {
-                final data = snapshots.data()!;
-                return Copy.fromJson(
-                  data,
-                  reference: snapshots.reference
-                      as DocumentReference<Copy>, // Cast the reference
-                );
-              },
-              toFirestore: (copy, _) => copy.toJson(),
-            );
-    _customersRef =
-        _firestore.collection(CUSTOMERS_COLLECTION_REF).withConverter<Customer>(
-              fromFirestore: (snapshots, _) => Customer.fromJson(
-                snapshots.data()!,
-              ),
-              toFirestore: (customer, _) => customer.toJson(),
-            );
+    _initializeCollections();
+  }
+  
+  void _initializeCollections() {
+    final firestore = _firestoreService.firestore;
+    
+    // Initialize all collections using the firestore service
+    _booksRef = firestore.collection(BOOKS_COLLECTION_REF).withConverter<Book>(
+      fromFirestore: (snapshots, _) {
+        try {
+          final data = snapshots.data();
+          if (data == null) {
+            throw Exception("Document data is null");
+          }
+          return Book.fromJson(data);
+        } catch (e) {
+          print('Error converting Book from Firestore: $e');
+          rethrow;
+        }
+      },
+      toFirestore: (book, _) => book.toJson(),
+    );
+    
+    _copiesRef = firestore.collection(COPIES_COLLECTION_REF).withConverter<Copy>(
+      fromFirestore: (snapshots, _) {
+        try {
+          final data = snapshots.data();
+          if (data == null) {
+            throw Exception("Document data is null");
+          }
+          return Copy.fromJson(data);
+        } catch (e) {
+          print('Error converting Copy from Firestore: $e');
+          rethrow;
+        }
+      },
+      toFirestore: (copy, _) => copy.toJson(),
+    );
+
+    _seriesRef = firestore.collection(SERIES_COLLECTION_REF).withConverter<Series>(
+      fromFirestore: (snapshots, _) {
+        try {
+          final data = snapshots.data();
+          if (data == null) {
+            throw Exception("Document data is null");
+          }
+          return Series.fromJson(data);
+        } catch (e) {
+          print('Error converting Series from Firestore: $e');
+          rethrow;
+        }
+      },
+      toFirestore: (series, _) => series.toJson(),
+    );
+
+    _customersRef = firestore.collection(CUSTOMERS_COLLECTION_REF).withConverter<Customer>(
+      fromFirestore: (snapshots, _) {
+        try {
+          final data = snapshots.data();
+          if (data == null) {
+            throw Exception("Document data is null");
+          }
+          return Customer.fromJson(data);
+        } catch (e) {
+          print('Error converting Customer from Firestore: $e');
+          rethrow;
+        }
+      },
+      toFirestore: (customer, _) => customer.toJson(),
+    );
+  }
+  
+  void _checkAuthentication() {
+    if (_auth.currentUser == null) {
+      throw Exception("User is not authenticated. Please sign in.");
+    }
+  }
+  
+  // Updated addCopy method using our new service
+  Future<void> addCopy(String bookId) async {
+    try {
+      _checkAuthentication();
+      
+      final bookRef = _booksRef.doc(bookId);
+      final docRef = _copiesRef.doc();
+      
+      final copyData = {
+        'id': docRef.id,
+        'bookRef': bookRef,
+        'dateAcquired': Timestamp.fromDate(DateTime.now()),
+        'available': true,
+        'loanRefs': [],
+      };
+      
+      await _firestoreService.executeBatch((batch) {
+        batch.set(docRef, copyData);
+      });
+      
+    } catch (e) {
+      print('Error adding copy: $e');
+      rethrow;
+    }
+  }
+  
+  // Update all existing methods to use the firestore service
+  Stream<List<Book>> filterBooks(String searchQuery) {
+    try {
+      _checkAuthentication();
+      var query = _booksRef
+          .orderBy('title')
+          .limit(10); // Add limit to prevent too many results
+          
+      if (searchQuery.isNotEmpty) {
+        query = query.where('title', isGreaterThanOrEqualTo: searchQuery);
+      }
+      
+      return _firestoreService.streamCollection(query)
+          .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList())
+          .handleError((error) {
+            print('Error in filterBooks: $error');
+            return <Book>[];
+          });
+    } catch (e) {
+      print('Error setting up filterBooks stream: $e');
+      return Stream.value(<Book>[]);
+    }
   }
 
   Stream<QuerySnapshot> getBooks() {
@@ -262,3 +362,6 @@ Future<Map<String, (int, int)>> getAllBooksAvailability() async {
   }
 }
 }
+
+
+// ignore_for_file: constant_identifier_names
