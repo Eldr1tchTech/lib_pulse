@@ -319,7 +319,7 @@ class _CatalogTabState extends State<CatalogTab> {
       onSelected: (value) async {
         try {
           if (value == 'add_copy') {
-            await _addCopy(book);
+            await _databaseServices.addBookCopy(book);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Copy added successfully')),
             );
@@ -378,38 +378,6 @@ class _CatalogTabState extends State<CatalogTab> {
         ],
       ),
     );
-  }
-
-  Future<void> _addCopy(Book book) async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
-
-      final docRef = _databaseServices.copiesRef.doc();
-
-      final newCopy = Copy(
-        id: docRef.id,
-        bookRef: _databaseServices.booksRef.doc(book.id),
-        dateAcquired: DateTime.now(),
-        available: true,
-        loanRefs: [],
-      );
-
-      await docRef.set(newCopy);
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Error adding copy: $e';
-      });
-      print('Error adding copy: $e');
-      rethrow;
-    }
   }
 
   Widget _buildCustomerActions(Customer customer) {
