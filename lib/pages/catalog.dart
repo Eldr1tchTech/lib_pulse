@@ -321,7 +321,9 @@ class _CatalogTabState extends State<CatalogTab> {
           if (value == 'add_copy') {
             await _databaseServices.addBookCopy(book);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Copy added successfully')),
+              const SnackBar(
+                content: Text('Copy added successfully'),
+              ),
             );
           } else if (value == 'view') {
             Navigator.push(
@@ -338,7 +340,9 @@ class _CatalogTabState extends State<CatalogTab> {
           }
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
+            SnackBar(
+              content: Text('Error: $e'),
+            ),
           );
         }
       },
