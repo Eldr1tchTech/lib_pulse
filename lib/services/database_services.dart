@@ -111,40 +111,50 @@ class DatabaseServices {
   }
 
   Future<void> addBookCopy(Book book) async {
-    final docRef = await copiesRef();
-
-    final newCopy = Copy(
-      id: docRef.id,
-      bookRef: booksRef.doc(book.id),
-      dateAcquired: DateTime.now(),
-      available: true,
-      loanRefs: [],
-    );
-
-    await docRef.set(newCopy);
+  try {
+    // Use the FirestoreService to ensure operations run on the platform thread
+    await _firestoreService.execute(() async {
+      final docRef = _copiesRef.doc();
+      
+      final newCopy = Copy(
+        id: docRef.id,
+        bookRef: booksRef.doc(book.id),
+        dateAcquired: DateTime.now(),
+        available: true,
+        loanRefs: [],
+      );
+      
+      await docRef.set(newCopy);
+      return true; // Return value needed for execute<T>
+    });
+  } catch (e) {
+    print('Error adding book copy: $e');
+    rethrow; // Rethrow to allow proper error handling upstream
   }
+}
 
   Future<void> addCopy(String isbn) async {
-    try {
+  try {
+    await _firestoreService.execute(() async {
       final bookRef = _booksRef.doc(isbn);
       final docRef = _copiesRef.doc();
 
-      final copyData = {
-        'id': docRef.id,
-        'bookRef': bookRef,
-        'dateAcquired': Timestamp.fromDate(DateTime.now()),
-        'available': true,
-        'loanRefs': [],
-      };
+      final newCopy = Copy(
+        id: docRef.id,
+        bookRef: bookRef,
+        dateAcquired: DateTime.now(),
+        available: true,
+        loanRefs: [],
+      );
 
-      await _firestoreService.executeBatch((batch) {
-        batch.set(docRef, copyData);
-      });
-    } catch (e) {
-      print('Error adding copy: $e');
-      rethrow;
-    }
+      await docRef.set(newCopy);
+      return true;
+    });
+  } catch (e) {
+    print('Error adding copy: $e');
+    rethrow;
   }
+}
 
   Stream<List<Book>> filterBooks(String searchQuery) {
     try {
@@ -357,6 +367,6 @@ class DatabaseServices {
   }
 
   Future<DocumentReference<Copy>> copiesRef() async {
-    return _copiesRef.doc();
-  }
+  return _firestoreService.execute(() => Future.value(_copiesRef.doc()));
+}
 }
